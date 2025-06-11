@@ -1,1 +1,1007 @@
-logger
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDK SmartLogger - BLE温度ロガー</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        @media (min-width: 600px) {
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+                width: 66.67%;
+            }
+        }
+
+        .header {
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header-content {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .title-area {
+            text-align: center;
+            margin: 0 auto;
+            padding: 0px;
+        }
+
+        .header h1 {
+            font-size: 2.0rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background-color: #ff4757;
+            box-shadow: 0 0 10px rgba(255, 71, 87, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .status-indicator.connected {
+            background-color: #2ed573;
+            box-shadow: 0 0 10px rgba(46, 213, 115, 0.5);
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card h2 {
+            color: #2c3e50;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .card-title {
+            display: flex;
+        }
+
+        .connect-section {
+            text-align: center;
+        }
+
+        .connect-card {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .connect-btn {
+            background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0, 176, 155, 0.3);
+        }
+
+        .connect-btn:hover {
+            background: linear-gradient(135deg, #96c93d 0%, #00b09b 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 176, 155, 0.4);
+        }
+
+        .collect-data-btn {
+            background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            margin-top: 10px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .collect-data-btn:hover {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(230, 126, 34, 0.3);
+        }
+
+        .collect-data-btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 4px 15px rgba(30, 60, 114, 0.2);
+        }
+
+        .collect-data-btn::before {
+            content: "📥";
+            font-size: 1.4rem;
+        }
+
+        .sensor-grid {
+            display: grid;
+            grid-template-rows: 1.5fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .sensor-value {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            color: #333;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .sensor-icon {
+            color: #ff0000;
+            font-size: 3.0rem;
+        }
+
+        .sensor-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .value-container {
+            display: flex;
+            align-items: baseline;
+        }
+
+        .sensor-value .value {
+            font-size: 4.0rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .sensor-value .unit {
+            font-size: 2.0rem;
+            color: #666;
+            margin-left: 8px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .input-group input {
+            padding: 12px 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .history-section {
+            margin-top: 20px;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .history-table th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .history-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e1e8ed;
+        }
+
+        .history-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .error {
+            color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .success {
+            color: #27ae60;
+            background: rgba(39, 174, 96, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #27ae60;
+        }
+
+        .status-bar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .status-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .disconnect-btn {
+            position: absolute;
+            right: 0;
+            top: calc(50% + 35px);
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%);
+            color: white;
+            padding: 8px 15px;
+            font-size: 1.0rem;
+            font-weight: 600;
+            border-radius: 50px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
+            display: none;
+            transition: all 0.3s ease;
+        }
+
+        .disconnect-btn:hover {
+            background: linear-gradient(135deg, #ff6b81 0%, #ff4757 100%);
+            box-shadow: 0 6px 20px rgba(255, 71, 87, 0.4);
+        }
+
+        .status-text {
+            color: #2c3e50;
+            font-size: 1.0rem;
+            font-weight: 600;
+        }
+
+        .battery-icon {
+            width: 32px;
+            height: 16px;
+            border: 2px solid #2c3e50;
+            border-radius: 3px;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            margin-left: 10px;
+        }
+
+        .battery-icon::after {
+            content: '';
+            width: 3px;
+            height: 8px;
+            background: #2c3e50;
+            position: absolute;
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-radius: 0 2px 2px 0;
+        }
+
+        .battery-icon .level {
+            height: 100%;
+            background: #2ed573;
+            transition: width 0.3s ease;
+        }
+
+        .battery-icon.low .level {
+            background: #ff4757;
+        }
+
+        .battery-icon.medium .level {
+            background: #ffa502;
+        }
+
+        .battery-icon.unknown::before {
+            content: '?';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: #2c3e50;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        /* メッセージ表示用のスタイル */
+        .message-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            width: 80%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .message {
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            pointer-events: auto;
+            color: white;
+            opacity: 1;
+            transition: opacity 0.3s ease, background-color 0.3s ease;
+        }
+
+        .message.error {
+            background: rgba(231, 76, 60, 0.95);
+        }
+
+        .message.success {
+            background: rgba(39, 174, 96, 0.95);
+        }
+
+        /* メッセージのスタイルはここまで */
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <div class="title-area">
+                    <h1>HDK SmartLogger</h1>
+                    <p>BLE温度データロガー</p>
+                </div>
+                <button class="disconnect-btn" onclick="disconnectDevice()" style="display: none;">切断</button>
+            </div>
+            <div id="connectionStatus" style="margin-top: 15px; color: white;"></div>
+        </div>
+        <div class="status-bar">
+            <div class="status-text">
+                <span class="status-indicator" id="statusIndicator"></span>
+                <span id="connectionText">未接続</span>
+            </div>
+            <div class="status-right">
+                <span class="status-text"><span id="statusTime">--:--:--</span></span>
+                <div class="battery-icon unknown" id="batteryIcon">
+                    <div class="level" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="connect-card">
+            <button class="connect-btn" onclick="connectToDevice()">デバイスに接続</button>
+        </div>
+        <div class="card" id="sensorCard" style="display: none;">
+            <div class="card-title">
+                <span class="sensor-icon">🌡</span>
+                <h2>現在温度</h2>
+            </div>
+            <div class="sensor-value">
+                <div class="sensor-content">
+                    <div class="value-container">
+                        <span class="value" id="temperatureValue">--.-</span>
+                        <span class="unit">℃</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card" id="dataMeterCard" style="display: none;">
+            <div class="card-title">
+                <div class="sensor-icon">📊</div>
+                <h2>計測データ</h2>
+            </div>
+            <div class="sensor-grid">
+                <div class="sensor-value">
+                    <div class="sensor-content">
+                        <div class="value-container">
+                            <span class="value" id="dataCount">0</span>
+                            <span class="unit">件</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="collect-data-btn" onclick="loadHistoricalData()">
+                    <span class="btn-label">データ回収開始</span>
+                </button>
+            </div>
+        </div>
+    </div> <!-- .container -->
+    <div id="messageContainer" class="message-container"></div>
+
+    <script src="device_emulator.js"></script>
+    <script>
+        // BLE関連の変数
+        let device = null;
+        let server = null;
+        let service = null;
+        let characteristics = {};
+        let useEmulator = false; // エミュレータ使用フラグ
+
+        // タイムスタンプ変換関数
+        function toDeviceTimestamp(date = new Date()) {
+            const localDate = new Date(date);
+            localDate.setHours(localDate.getHours() + 9);
+            return Math.floor(localDate / 1000);
+        }
+
+        function fromDeviceTimestamp(timestamp) {
+            const date = new Date(timestamp * 1000);
+            date.setHours(date.getHours() - 9);
+            return date;
+        }
+
+        // URLパラメータでエミュレータ切り替え
+        function getUrlParam(name) {
+            const params = new URLSearchParams(window.location.search);
+            return params.get(name);
+        }
+
+        // デバイスレベルエミュレータ自動ON（?emu=1）
+        if (getUrlParam('emu') === '1') {
+            useEmulator = true;
+        }
+
+        // UUIDs (Arduinoコードと同じ)
+        const SERVICE_UUID = "b1e2c1a0-7e4b-4b8a-8f2d-123456789abc";
+        const CHAR_UUIDS = {
+            CURRENT_TIME: "c04b3159-ef9d-4042-8946-ecf7c335f3a1",
+            SET_TIME: "ddc53751-9308-4489-adee-e6dd18aabea3",
+            CURRENT_TEMP: "cc9e794b-2bab-476b-b603-a47a28ce41c1",
+            CURRENT_HUMIDITY: "238b2fc3-877c-4d3b-8a6d-f0c796055c7e",
+            CURRENT_BATTERY: "2955be57-8363-42e6-aacb-4725b4afd3d5",
+            DATA_COUNT: "201485f0-0ff2-4526-9b95-1b5fa678f7ea",
+            CONTROL_POINT: "9229b428-2cf4-4419-836b-d3f1f243916b",
+            HISTORICAL_DATA: "a1030249-0150-499d-a7c3-51489a59c86c"
+        };
+
+        // メッセージ管理
+        const MessageManager = {
+            currentMessage: null,
+            currentTimeout: null,
+
+            // メッセージの表示
+            show(message, type) {
+                const container = document.getElementById('messageContainer');
+
+                // 既存のメッセージとタイマーをクリア
+                if (this.currentMessage) {
+                    container.removeChild(this.currentMessage);
+                    if (this.currentTimeout) {
+                        clearTimeout(this.currentTimeout);
+                    }
+                }
+
+                // 新しいメッセージを表示
+                const messageElement = this.createMessageElement(message, type);
+                container.appendChild(messageElement);
+                this.currentMessage = messageElement;
+
+                // 3秒後に非表示
+                this.currentTimeout = setTimeout(() => this.hideMessage(), 3000);
+            },
+
+            // メッセージ要素の作成
+            createMessageElement(message, type) {
+                const element = document.createElement('div');
+                element.className = `message ${type}`;
+                element.textContent = message;
+                return element;
+            },
+
+            // メッセージの非表示
+            hideMessage() {
+                if (!this.currentMessage) return;
+
+                this.currentMessage.style.opacity = '0';
+                setTimeout(() => {
+                    if (this.currentMessage && this.currentMessage.parentNode) {
+                        this.currentMessage.parentNode.removeChild(this.currentMessage);
+                    }
+                    this.currentMessage = null;
+                    this.currentTimeout = null;
+                }, 300);
+            }
+        };
+
+        // エラーメッセージの表示
+        function showError(message) {
+            console.error(message);
+            MessageManager.show(message, 'error');
+        }
+
+        // 成功メッセージの表示
+        function showSuccess(message) {
+            console.log(message);
+            MessageManager.show(message, 'success');
+        }
+
+        // ログ出力
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        // バッテリアイコン表示
+        function updateBatteryIcon(batteryValue) {
+            const batteryIcon = document.getElementById('batteryIcon');
+            const level = batteryIcon.querySelector('.level');
+
+            if (!batteryValue || batteryValue === '--') {
+                batteryIcon.className = 'battery-icon unknown';
+                level.style.width = '0%';
+                return;
+            }
+
+            // バッテリー電圧から残量を計算（3.2V-4.2V）
+            const minVoltage = 3200;  // 3.2V
+            const maxVoltage = 4200;  // 4.2V
+            let percentage = (batteryValue - minVoltage) / (maxVoltage - minVoltage) * 100;
+            percentage = Math.max(0, Math.min(100, percentage));  // 0-100%の範囲に制限
+
+            // バッテリーレベルに応じてクラスを設定
+            if (percentage <= 20) {
+                batteryIcon.className = 'battery-icon low';
+            } else if (percentage <= 50) {
+                batteryIcon.className = 'battery-icon medium';
+            } else {
+                batteryIcon.className = 'battery-icon';
+            }
+
+            level.style.width = `${percentage}%`;
+        }
+        
+        // 接続状態の更新
+        function updateConnectionStatus(connected) {
+            const indicator = document.getElementById('statusIndicator');
+            const connectionText = document.getElementById('connectionText');
+            const sensorCard = document.getElementById('sensorCard');
+            const dataMeterCard = document.getElementById('dataMeterCard');
+            const batteryIcon = document.getElementById('batteryIcon');
+            const disconnectButton = document.querySelector('.disconnect-btn');
+            const connectCard = document.querySelector('.connect-card');
+
+            if (connected) {
+                indicator.classList.add('connected');
+                connectionText.textContent = '接続済み';
+                sensorCard.style.display = 'block';
+                dataMeterCard.style.display = 'block';
+                batteryIcon.classList.remove('unknown');
+                disconnectButton.style.display = 'inline-block';
+                connectCard.style.display = 'none';
+            } else {
+                indicator.classList.remove('connected');
+                connectionText.textContent = '未接続';
+                sensorCard.style.display = 'none';
+                dataMeterCard.style.display = 'none';
+                batteryIcon.className = 'battery-icon unknown';
+                const level = batteryIcon.querySelector('.level');
+                if (level) {
+                    level.style.width = '0%';
+                }
+                document.getElementById('statusTime').textContent = '--:--:--';
+                disconnectButton.style.display = 'none';
+                connectCard.style.display = 'block';
+            }
+        }
+        
+        // デバイスに接続
+        async function connectToDevice() {
+            try {
+                if (!navigator.bluetooth) {
+                    throw new Error('このブラウザはWeb Bluetooth APIをサポートしていません');
+                }
+
+                log('デバイスを検索中...');
+
+                if (useEmulator) {
+                    await connectToEmulator();
+                } else {
+                    await connectToRealDevice();
+                }
+
+                // 初期設定
+                updateConnectionStatus(true);
+                await readAllSensorData();
+
+            } catch (error) {
+                showError(`接続エラー: ${error.message}`);
+                updateConnectionStatus(false);
+            }
+        }
+
+        // エミュレータに接続
+        async function connectToEmulator() {
+            if (typeof getEmulatorDevice !== 'function') {
+                throw new Error('エミュレータが正しくロードされていません');
+            }
+
+            log('エミュレータに接続中...');
+            device = getEmulatorDevice();
+            server = await device.gatt.connect();
+            service = await server.getPrimaryService(SERVICE_UUID);
+            await setupCharacteristics();
+            showSuccess('エミュレータデバイスに接続しました');
+        }
+
+        // 実デバイスに接続
+        async function connectToRealDevice() {
+            device = await navigator.bluetooth.requestDevice({
+                filters: [{ name: 'HDK_SmartLogger' }],
+                optionalServices: [SERVICE_UUID]
+            });
+
+            log(`デバイス発見: ${device.name}`);
+            server = await device.gatt.connect();
+            service = await server.getPrimaryService(SERVICE_UUID);
+            await setupCharacteristics();
+            device.addEventListener('gattserverdisconnected', onDisconnected);
+            showSuccess('デバイスに接続しました');
+        }
+
+        // Characteristicsのセットアップ
+        async function setupCharacteristics() {
+            characteristics = {};
+            for (const [name, uuid] of Object.entries(CHAR_UUIDS)) {
+                try {
+                    characteristics[name] = await service.getCharacteristic(uuid);
+                    log(`${name} characteristic取得完了`);
+                } catch (err) {
+                    log(`${name} characteristic取得エラー: ${err.message}`);
+                }
+            }
+        }
+
+        // デバイスから切断
+        async function disconnectDevice() {
+            if (device && device.gatt) {
+                if (useEmulator) {
+                    device.gatt.disconnect();
+                    onDisconnected();
+                    log('エミュレータデバイスから切断しました');
+                } else if (device.gatt.connected) {
+                    device.gatt.disconnect();
+                    log('デバイスから切断しました');
+                }
+            }
+        }
+        
+        // 切断時の処理
+        function onDisconnected() {
+            log('デバイスが切断されました');
+            updateConnectionStatus(false);
+            // 接続関連の変数をクリア
+            device = null;
+            server = null;
+            service = null;
+            characteristics = {};
+            // エミュレータモードをリセット（URLパラメータの状態を維持）
+            if (getUrlParam('emu') !== '1') {
+                useEmulator = false;
+            }
+        }
+
+        // センサーデータの読み取り
+        async function readAllSensorData() {
+            if (!characteristics) {
+                throw new Error('Characteristicsが初期化されていません');
+            }
+
+            try {
+                await readTemperature(),
+                await readBattery(),
+                await readDataCount(),
+                await readDeviceTime()
+
+                log('センサーデータ更新完了');
+            } catch (error) {
+                showError(`データ読み取りエラー: ${error.message}`);
+            }
+        }
+
+        // 温度の読み取り
+        async function readTemperature() {
+            if (!characteristics.CURRENT_TEMP) return;
+            const value = await characteristics.CURRENT_TEMP.readValue();
+            const temp = value.getInt16(0, true) / 10.0;
+            document.getElementById('temperatureValue').textContent = temp.toFixed(1);
+        }
+
+        // バッテリーの読み取り
+        async function readBattery() {
+            if (!characteristics.CURRENT_BATTERY) return;
+            const value = await characteristics.CURRENT_BATTERY.readValue();
+            const battery = value.getUint16(0, true);
+            updateBatteryIcon(battery);
+        }
+
+        // データ件数の読み取り
+        async function readDataCount() {
+            if (!characteristics.DATA_COUNT) return;
+            const value = await characteristics.DATA_COUNT.readValue();
+            const count = value.getUint16(0, true);
+            document.getElementById('dataCount').textContent = count;
+        }
+
+        // デバイス時刻の読み取り
+        async function readDeviceTime() {
+            if (!characteristics.CURRENT_TIME) {
+                document.getElementById('statusTime').textContent = '--:--:--';
+                return;
+            }
+            const value = await characteristics.CURRENT_TIME.readValue();
+            const timestamp = value.getUint32(0, true);
+            const date = fromDeviceTimestamp(timestamp);
+            document.getElementById('statusTime').textContent = date.toLocaleTimeString();
+        }
+
+        // デバイス時刻を設定
+        async function setDeviceTime() {
+            try {
+
+                if (characteristics.SET_TIME) {
+                    const timestamp = toDeviceTimestamp(new Date());
+                    const buffer = new ArrayBuffer(4);
+                    const view = new DataView(buffer);
+                    view.setUint32(0, timestamp, true);
+                    await characteristics.SET_TIME.writeValue(buffer);
+
+                    // データを再読み取り
+                    setTimeout(readAllSensorData, 500);
+                }
+
+            } catch (error) {
+                showError(`時刻設定エラー: ${error.message}`);
+            }
+        }
+        
+        // 履歴データを取得
+        async function loadHistoricalData() {
+            try {
+                const totalCount = await getDataCount();
+                if (totalCount === 0) {
+                    showError('履歴データがありません');
+                    return;
+                }
+
+                collectedData = [];
+                log(`全${totalCount}件のデータを取得します`);
+
+                const chunkSize = 20; // 1回のリクエストで取得するレコード数
+                for (let currentIndex = 0; currentIndex < totalCount; currentIndex += chunkSize) {
+                    await processDataChunk(currentIndex, totalCount);
+                    await new Promise(resolve => setTimeout(resolve, 100)); // デバイス処理の余裕を持たせる
+                }
+
+                if (collectedData.length > 0) {
+                    showSuccess(`全${totalCount}件のデータを取得完了しました`);
+                    await downloadAsCSV(collectedData);
+                }
+
+            } catch (error) {
+                showError(`履歴データ取得エラー: ${error.message}`);
+            }
+        }
+
+        // データ件数の取得
+        async function getDataCount() {
+            if (!characteristics.DATA_COUNT) {
+                throw new Error('データカウント特性が見つかりません');
+            }
+            const value = await characteristics.DATA_COUNT.readValue();
+            return value.getUint16(0, true);
+        }
+
+        // データチャンクの処理
+        async function processDataChunk(currentIndex, totalCount) {
+            await setControlPoint(currentIndex);
+            const records = await readHistoricalData();
+            const progress = Math.floor((Math.min(currentIndex + records, totalCount) / totalCount) * 100);
+            showSuccess(`データ取得中... (${progress}%)`);
+        }
+
+        // コントロールポイントの設定
+        async function setControlPoint(index) {
+            if (!characteristics.CONTROL_POINT) return;
+            const buffer = new ArrayBuffer(2);
+            const view = new DataView(buffer);
+            view.setUint16(0, index, true);
+            await characteristics.CONTROL_POINT.writeValue(buffer);
+            log(`履歴データ読み取り インデックス: ${index}`);
+        }
+
+        // 履歴データの読み取り
+        async function readHistoricalData() {
+            if (!characteristics.HISTORICAL_DATA) {
+                throw new Error('履歴データ特性が見つかりません');
+            }
+            const value = await characteristics.HISTORICAL_DATA.readValue();
+            return parseHistoricalData(value);
+        }
+
+        // CSVファイルの作成とダウンロード
+        async function downloadAsCSV(data) {
+            try {
+                const csvContent = generateCSVContent(data);
+                const filename = generateCSVFilename();
+                const blob = await createCSVBlob(csvContent);
+
+                await downloadFile(blob, filename);
+                showSuccess(`CSVファイルをダウンロードしました: ${filename}`);
+            } catch (error) {
+                showError(`CSVファイル作成エラー: ${error.message}`);
+            }
+        }
+
+        // CSVコンテンツの生成
+        function generateCSVContent(data) {
+            const headers = "測定日時,温度(℃)\n";
+            const rows = data.map(row => {
+                const date = fromDeviceTimestamp(row.timestamp);
+                const dateStr = formatDate(date);
+                const temp = (row.temperature / 10.0).toFixed(1);
+
+                return `${dateStr},${temp}`;
+            }).join('\n');
+
+            return headers + rows;
+        }
+
+        // 日付のフォーマット
+        function formatDate(date) {
+            return date.toLocaleString('ja-JP', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).replace(/\//g, '/');
+        }
+
+        // CSVファイル名の生成
+        function generateCSVFilename() {
+            const now = new Date();
+            const timestamp = now.getFullYear() +
+                String(now.getMonth() + 1).padStart(2, '0') +
+                String(now.getDate()).padStart(2, '0') +
+                String(now.getHours()).padStart(2, '0') +
+                String(now.getMinutes()).padStart(2, '0') +
+                String(now.getSeconds()).padStart(2, '0');
+            return `SmartLogger_${timestamp}.csv`;
+        }
+
+        // UTF-8 with BOM形式のBlobの作成
+        async function createCSVBlob(content) {
+            const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+            const contentArray = new TextEncoder().encode(content);
+            const combined = new Uint8Array(bom.length + contentArray.length);
+            combined.set(bom);
+            combined.set(contentArray, bom.length);
+            return new Blob([combined], { type: 'text/csv;charset=utf-8' });
+        }
+
+        // ファイルのダウンロード
+        async function downloadFile(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+
+            document.body.appendChild(a);
+            a.click();
+
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        }
+
+        // 収集したデータを保存する配列
+        let collectedData = [];
+
+        // 履歴データを解析して表示（戻り値: 処理したレコード数）
+        function parseHistoricalData(dataValue) {
+            try {
+                const data = new Uint8Array(dataValue.buffer);
+                const recordCount = data[0];
+
+                if (recordCount === 0) return 0;
+
+                let offset = 1;
+                for (let i = 0; i < recordCount; i++) {
+                    // Unix Time (4bytes)
+                    const timestamp = data[offset] | (data[offset + 1] << 8) |
+                        (data[offset + 2] << 16) | (data[offset + 3] << 24);
+                    offset += 4;
+
+                    // Temperature (2bytes, 10倍値)
+                    const temp = ((data[offset + 1] << 8) | data[offset]);
+                    offset += 2;
+
+                    // 4バイト分スキップ（湿度とバッテリー）
+                    offset += 4;
+
+                    // 解析したデータを配列に追加
+                    collectedData.push({
+                        timestamp: timestamp,
+                        temperature: temp  // 10倍値で保存
+                    });
+                }
+
+                return recordCount;
+            } catch (error) {
+                showError(`履歴データ解析エラー: ${error.message}`);
+                return 0;
+            }
+        }
+
+    </script>
+</body>
+
+</html>
