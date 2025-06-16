@@ -517,7 +517,8 @@
             CURRENT_BATTERY: "2955be57-8363-42e6-aacb-4725b4afd3d5",
             DATA_COUNT: "201485f0-0ff2-4526-9b95-1b5fa678f7ea",
             CONTROL_POINT: "9229b428-2cf4-4419-836b-d3f1f243916b",
-            HISTORICAL_DATA: "a1030249-0150-499d-a7c3-51489a59c86c"
+            HISTORICAL_DATA: "a1030249-0150-499d-a7c3-51489a59c86c",
+            CLEAR_HISTORICAL_DATA: "4130d566-2748-4c38-9c90-f8b7d834235f"
         };
 
         // メッセージ管理
@@ -841,6 +842,10 @@
                 if (collectedData.length > 0) {
                     showSuccess(`全${totalCount}件のデータを取得完了しました`);
                     await downloadAsCSV(collectedData);
+
+                    // データのクリアとデータ数更新
+                    await clearHistoricalData();
+                    await readDataCount();
                 }
 
             } catch (error) {
@@ -882,6 +887,16 @@
             }
             const value = await characteristics.HISTORICAL_DATA.readValue();
             return parseHistoricalData(value);
+        }
+
+        // 履歴データのクリア
+        async function clearHistoricalData() {
+            if (!characteristics.CLEAR_HISTORICAL_DATA) return;
+            const buffer = new ArrayBuffer(2);
+            const view = new DataView(buffer);
+            view.setUint16(0, 0x5aa5, true);
+            await characteristics.CLEAR_HISTORICAL_DATA.writeValue(buffer);
+            log(`履歴データクリア`);
         }
 
         // CSVファイルの作成とダウンロード
@@ -968,20 +983,19 @@
         // 履歴データを解析して表示（戻り値: 処理したレコード数）
         function parseHistoricalData(dataValue) {
             try {
-                const data = new Uint8Array(dataValue.buffer);
-                const recordCount = data[0];
+                const data = new DataView(dataValue.buffer);
+                const recordCount = data.getUint8(0);
 
                 if (recordCount === 0) return 0;
 
                 let offset = 1;
                 for (let i = 0; i < recordCount; i++) {
                     // Unix Time (4bytes)
-                    const timestamp = data[offset] | (data[offset + 1] << 8) |
-                        (data[offset + 2] << 16) | (data[offset + 3] << 24);
+                    const timestamp = data.getUint32(offset, true);
                     offset += 4;
 
                     // Temperature (2bytes, 10倍値)
-                    const temp = ((data[offset + 1] << 8) | data[offset]);
+                    const temp = data.getInt16(offset, true);
                     offset += 2;
 
                     // 4バイト分スキップ（湿度とバッテリー）
